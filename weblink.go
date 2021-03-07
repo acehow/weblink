@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,7 @@ var showlink string
 
 var file *os.File
 var urls=make(map[int64]string)
+var lock sync.RWMutex
 var filename="store.json"
 
 func main() {
@@ -33,6 +35,8 @@ func main() {
 	app.GET("/", func(c *gin.Context) {
 		con:=""
 		var keys IntSlice64
+		lock.RLock()
+		defer lock.RUnlock()
 		for k, _ := range urls {
 			keys=append(keys,k)
 		}
@@ -59,6 +63,8 @@ func main() {
 	app.POST("/add", func(ctx *gin.Context) {
 		key:=time.Now().UnixNano()
 		url:=ctx.PostForm("inputdata")
+		lock.Lock()
+		defer lock.Unlock()
 		urls[key]=url
 		save()
 		ctx.Redirect(http.StatusFound,"/")
@@ -70,6 +76,8 @@ func main() {
 		if err != nil {
 			log.Fatal("Error key error:", err)
 		}
+		lock.Lock()
+		defer lock.Unlock()
 		delete(urls,key)
 		save()
 		ctx.Redirect(http.StatusFound,"/")
