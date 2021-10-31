@@ -8,12 +8,19 @@
   <title>LinkList</title>
 </head>
 <body>
+  <h3>Link List</h3>
+  <br>
   <div>
     <form name="postform" id="postform" method="POST" action="/add" onsubmit='return checkForm()'>
-      <input type="submit" value="Send">
-      <input type="text" id="inputdata" name="inputdata" autofocus>
+      
+      <input type="submit" value="Send"><font color="red">*</font>Link:<input type="text" id="inputdata" name="inputdata" autofocus>
+      <br>
+      Text:<input type="text" id="inputname" name="inputname" >
+      
+
     </form>
   </div>
+  <hr/>
   <div>
     <form name="delform" id="delform" method="POST" action="/del">
       <input type="hidden" name="delid" id="delid" value="">
