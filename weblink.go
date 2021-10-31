@@ -3,7 +3,6 @@ package main
 import (
 	_ "embed"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"html/template"
 	"log"
 	"net/http"
@@ -12,45 +11,47 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 //go:embed showlink.html
 var showlink string
-
-var file *os.File
-var urls=make(map[int64]string)
+var urls = make(map[int64]InputUrl)
 var lock sync.RWMutex
-var filename="store.json"
+var filename = "store.json"
+
+type InputUrl struct {
+	InputUrlLink string
+	InputUrlName string
+}
 
 func main() {
 	//gin.SetMode(gin.ReleaseMode)
 	app := gin.Default()
-	app.Use(gin.Logger())
-	app.Use(gin.Recovery())
 	initdata()
-
 
 	html := template.Must(template.New("showlink.html").Parse(showlink))
 	app.SetHTMLTemplate(html)
 	app.GET("/", func(c *gin.Context) {
-		con:=""
+		con := ""
 		var keys IntSlice64
 		lock.RLock()
 		defer lock.RUnlock()
-		for k, _ := range urls {
-			keys=append(keys,k)
+		for k := range urls {
+			keys = append(keys, k)
 		}
 		sort.Sort(keys)
 
-		for _,v:= range keys {
-			url,ok:=urls[v]
-			m:=strconv.FormatInt(v,10)
+		for _, v := range keys {
+			url, ok := urls[v]
+			m := strconv.FormatInt(v, 10)
 			if ok {
-				con+="<div>"
-				con += `<input type="button" value="Del" onclick="delpost('`+m+`')">`
-				con +="<a href='"+url+"'>"
-				con += url+"</a>"
-				con+="</div>"
+				con += "<div>"
+				con += `<input type="button" value="Del" onclick="delpost('` + m + `')">`
+				con += "<a href='" + url.InputUrlLink + "'>"
+				con += url.InputUrlName + "</a>"
+				con += "</div><hr/>"
 			}
 		}
 
@@ -61,36 +62,40 @@ func main() {
 	})
 
 	app.POST("/add", func(ctx *gin.Context) {
-		key:=time.Now().UnixNano()
-		url:=ctx.PostForm("inputdata")
+		key := time.Now().UnixNano()
+		url := ctx.PostForm("inputdata")
+		urlname := ctx.PostForm("inputname")
+		if urlname == "" {
+			urlname = url
+		}
 		lock.Lock()
 		defer lock.Unlock()
-		urls[key]=url
+		urls[key] = InputUrl{url, urlname}
 		save()
-		ctx.Redirect(http.StatusFound,"/")
+		ctx.Redirect(http.StatusFound, "/")
 	})
 
 	app.POST("/del", func(ctx *gin.Context) {
-		id:=ctx.PostForm("delid")
+		id := ctx.PostForm("delid")
 		key, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			log.Fatal("Error key error:", err)
 		}
 		lock.Lock()
 		defer lock.Unlock()
-		delete(urls,key)
+		delete(urls, key)
 		save()
-		ctx.Redirect(http.StatusFound,"/")
+		ctx.Redirect(http.StatusFound, "/")
 	})
 
-	servePort:="8888"
+	servePort := "8888"
 	if len(os.Args) == 2 {
-		_,errport:=strconv.Atoi(os.Args[1])
-		if errport==nil {
-			servePort=os.Args[1]
+		_, errport := strconv.Atoi(os.Args[1])
+		if errport == nil {
+			servePort = os.Args[1]
 		}
 	}
-	app.Run(":"+servePort)
+	app.Run(":" + servePort)
 }
 
 //////////////////////
@@ -103,12 +108,9 @@ func initdata() {
 	}
 
 	d := json.NewDecoder(f)
-	err=d.Decode(&urls)
-	if err != nil {
-		//log.Fatal("Error opening URLStore:", err)
-	}
-}
+	d.Decode(&urls)
 
+}
 
 func save() {
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
